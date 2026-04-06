@@ -1,11 +1,12 @@
 'use client'
 
 import useSWR from 'swr'
-import { useState } from 'react'
-import { CheckCircle2, CircleDashed, AlertCircle } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { CheckCircle2, CircleDashed, AlertCircle, ArrowUpDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -13,9 +14,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { format, isToday, isPast, parseISO } from 'date-fns'
+import { format, isToday, isPast, parseISO, isFuture } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import type { Client, Installment } from '@/lib/types'
+
+type StatusFilter = 'all' | 'pending' | 'overdue' | 'today' | 'paid'
+type SortOrder = 'asc' | 'desc'
 
 const fetcher = (url: string) => fetch(url).then(r => r.json())
 const formatBRL = (v: number) =>
@@ -77,6 +81,9 @@ function getDueDateInfo(dueDateStr: string, status: string): DueDateInfo {
 export default function ParcelasPage() {
   const { data: clients } = useSWR<Client[]>('/api/clients', fetcher)
   const [clientFilter, setClientFilter] = useState<string>('all')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc')
+  const [search, setSearch] = useState('')
 
   const url = clientFilter !== 'all' ? `/api/installments?client_id=${clientFilter}` : '/api/installments'
   const { data: installments, isLoading, mutate } = useSWR<Installment[]>(url, fetcher)
@@ -85,6 +92,39 @@ export default function ParcelasPage() {
   const paid = installments?.filter(i => i.status === 'paid') ?? []
   const overdue = pending.filter(i => isPast(parseISO(i.due_date)) && !isToday(parseISO(i.due_date)))
   const totalPending = pending.reduce((s, i) => s + Number(i.value), 0)
+
+  const filtered = useMemo(() => {
+    if (!installments) return []
+    let result = [...installments]
+
+    // Filtro de busca por nome do cliente
+    if (search.trim()) {
+      result = result.filter(i =>
+        (i.client_name ?? '').toLowerCase().includes(search.toLowerCase())
+      )
+    }
+
+    // Filtro de status
+    if (statusFilter === 'pending') {
+      result = result.filter(i => i.status === 'pending')
+    } else if (statusFilter === 'overdue') {
+      result = result.filter(i =>
+        i.status === 'pending' && isPast(parseISO(i.due_date)) && !isToday(parseISO(i.due_date))
+      )
+    } else if (statusFilter === 'today') {
+      result = result.filter(i => i.status === 'pending' && isToday(parseISO(i.due_date)))
+    } else if (statusFilter === 'paid') {
+      result = result.filter(i => i.status === 'paid')
+    }
+
+    // Ordenacao por data de vencimento
+    result.sort((a, b) => {
+      const diff = parseISO(a.due_date).getTime() - parseISO(b.due_date).getTime()
+      return sortOrder === 'asc' ? diff : -diff
+    })
+
+    return result
+  }, [installments, statusFilter, sortOrder, search])
 
   async function toggleStatus(inst: Installment) {
     const newStatus = inst.status === 'paid' ? 'pending' : 'paid'
@@ -133,11 +173,18 @@ export default function ParcelasPage() {
         </Card>
       </div>
 
-      {/* Filter */}
-      <div className="mb-5">
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3 mb-5">
+        <Input
+          placeholder="Buscar cliente..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="w-44"
+        />
+
         <Select value={clientFilter} onValueChange={setClientFilter}>
-          <SelectTrigger className="w-52">
-            <SelectValue placeholder="Filtrar por cliente" />
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Todos os clientes" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos os clientes</SelectItem>
@@ -146,6 +193,29 @@ export default function ParcelasPage() {
             ))}
           </SelectContent>
         </Select>
+
+        <Select value={statusFilter} onValueChange={v => setStatusFilter(v as StatusFilter)}>
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos</SelectItem>
+            <SelectItem value="pending">Pendentes</SelectItem>
+            <SelectItem value="overdue">Atrasadas</SelectItem>
+            <SelectItem value="today">Vencem hoje</SelectItem>
+            <SelectItem value="paid">Pagas</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+          onClick={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')}
+        >
+          <ArrowUpDown className="w-3.5 h-3.5" />
+          Vencimento {sortOrder === 'asc' ? 'crescente' : 'decrescente'}
+        </Button>
       </div>
 
       <Card className="overflow-hidden">
@@ -154,15 +224,17 @@ export default function ParcelasPage() {
             <div className="p-6 space-y-3">
               {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
             </div>
-          ) : installments?.length === 0 ? (
+          ) : filtered.length === 0 ? (
             <div className="px-6 py-14 text-center">
               <CircleDashed className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
               <p className="text-sm font-medium text-muted-foreground">Nenhuma parcela encontrada</p>
-              <p className="text-xs text-muted-foreground mt-1">Parcelas aparecem ao criar pedidos parcelados</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {installments?.length ? 'Tente ajustar os filtros' : 'Parcelas aparecem ao criar pedidos parcelados'}
+              </p>
             </div>
           ) : (
             <div className="divide-y divide-border">
-              {installments?.map(inst => {
+              {filtered.map(inst => {
                 const info = getDueDateInfo(inst.due_date, inst.status)
                 const numLabel = inst.installment_number && inst.total_installments
                   ? `Parcela ${inst.installment_number}/${inst.total_installments}`

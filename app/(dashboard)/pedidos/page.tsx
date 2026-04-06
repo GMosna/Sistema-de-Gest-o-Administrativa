@@ -3,7 +3,7 @@
 import useSWR from 'swr'
 import Link from 'next/link'
 import { useState } from 'react'
-import { Plus, Eye, Trash2, ShoppingBag } from 'lucide-react'
+import { Plus, Eye, Trash2, ShoppingBag, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -26,12 +26,13 @@ const fetcher = (url: string) => fetch(url).then(r => r.json())
 const formatBRL = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 
-type StatusKey = 'pending' | 'paid' | 'partial'
+type StatusKey = 'pending' | 'paid' | 'partial' | 'delivered'
 
 const statusConfig: Record<StatusKey, { label: string; className: string }> = {
   pending: { label: 'Pendente', className: 'bg-amber-100 text-amber-700 border-amber-200' },
   paid: { label: 'Pago', className: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
   partial: { label: 'Parcial', className: 'bg-sky-100 text-sky-700 border-sky-200' },
+  delivered: { label: 'Entregue', className: 'bg-violet-100 text-violet-700 border-violet-200' },
 }
 
 const paymentConfig: Record<string, { label: string; className: string }> = {
@@ -62,6 +63,15 @@ export default function PedidosPage() {
     await fetch(`/api/orders/${id}`, { method: 'DELETE' })
     await mutate()
     setDeleteId(null)
+  }
+
+  async function handleMarkAsPaid(id: number) {
+    await fetch(`/api/orders/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'paid' }),
+    })
+    await mutate()
   }
 
   return (
@@ -141,6 +151,18 @@ export default function PedidosPage() {
                         {formatBRL(Number(order.total_value))}
                       </span>
                       <div className="flex items-center gap-0.5 ml-1">
+                        {order.status !== 'paid' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gap-1.5 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 h-8 px-2"
+                            onClick={() => handleMarkAsPaid(order.id)}
+                            title="Marcar como pago"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Marcar pago</span>
+                          </Button>
+                        )}
                         <Link href={`/pedidos/${order.id}`}>
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
                             <Eye className="w-4 h-4" />
