@@ -1,44 +1,72 @@
 import { NextResponse } from 'next/server'
-import sql from '@/lib/db'
+import { neon } from '@neondatabase/serverless'
+
+// Build a WHERE clause string + params array for a given period.
+// Returns { clause: string, params: unknown[] } where clause uses $1, $2...
+function buildDateFilter(
+  period: string,
+  monthParam: string | null,
+  yearParam: string | null,
+): { clause: string; params: unknown[] } {
+  if (period === 'week') {
+    return { clause: `WHERE created_at >= date_trunc('week', NOW())`, params: [] }
+  }
+  if (period === 'month') {
+    return {
+      clause: `WHERE date_trunc('month', created_at) = date_trunc('month', NOW())`,
+      params: [],
+    }
+  }
+  if (period === 'quarter') {
+    return { clause: `WHERE created_at >= NOW() - INTERVAL '3 months'`, params: [] }
+  }
+  if (period === 'year') {
+    return {
+      clause: `WHERE date_trunc('year', created_at) = date_trunc('year', NOW())`,
+      params: [],
+    }
+  }
+  if (period === 'custom' && monthParam) {
+    return {
+      clause: `WHERE date_trunc('month', created_at) = date_trunc('month', $1::date)`,
+      params: [monthParam + '-01'],
+    }
+  }
+  if (period === 'custom_year' && yearParam) {
+    return {
+      clause: `WHERE EXTRACT(year FROM created_at) = $1`,
+      params: [Number(yearParam)],
+    }
+  }
+  return { clause: '', params: [] }
+}
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
   const period = searchParams.get('period') ?? 'month'
-  const monthParam = searchParams.get('month') // YYYY-MM
+  const monthParam = searchParams.get('month')
   const yearParam = searchParams.get('year')
 
-  // Build date filter
-  let dateFilter = sql``
-  if (period === 'week') {
-    dateFilter = sql`WHERE created_at >= date_trunc('week', NOW())`
-  } else if (period === 'month') {
-    dateFilter = sql`WHERE date_trunc('month', created_at) = date_trunc('month', NOW())`
-  } else if (period === 'quarter') {
-    dateFilter = sql`WHERE created_at >= NOW() - INTERVAL '3 months'`
-  } else if (period === 'year') {
-    dateFilter = sql`WHERE date_trunc('year', created_at) = date_trunc('year', NOW())`
-  } else if (period === 'custom' && monthParam) {
-    dateFilter = sql`WHERE date_trunc('month', created_at) = date_trunc('month', ${monthParam + '-01'}::date)`
-  } else if (period === 'custom_year' && yearParam) {
-    dateFilter = sql`WHERE EXTRACT(year FROM created_at) = ${Number(yearParam)}`
-  }
+  const db = neon(process.env.DATABASE_URL!)
+  const { clause, params } = buildDateFilter(period, monthParam, yearParam)
 
   try {
-    // Summary totals
-    const totalsQuery = await sql`
-      SELECT
+    // Summary totals – uses dynamic WHERE via raw query
+    const totalsQuery = await db(
+      `SELECT
         COALESCE(SUM(total_value), 0)    AS total_sales,
         COALESCE(SUM(supplier_cost), 0)  AS total_supplier_cost,
         COALESCE(SUM(shipping_cost), 0)  AS total_shipping_cost,
         COALESCE(SUM(profit), 0)         AS total_profit,
         COUNT(*)                          AS total_orders
       FROM orders
-      ${dateFilter}
-    `
+      ${clause}`,
+      params,
+    )
 
-    // Monthly evolution (last 12 months always, or filtered year)
-    const monthly = await sql`
-      SELECT
+    // Monthly evolution – last 12 months fixed, no dynamic params
+    const monthly = await db(
+      `SELECT
         TO_CHAR(date_trunc('month', created_at), 'Mon/YYYY') AS month,
         date_trunc('month', created_at)                       AS month_date,
         COALESCE(SUM(total_value), 0)                         AS faturamento,
@@ -47,35 +75,37 @@ export async function GET(req: Request) {
       FROM orders
       WHERE created_at >= NOW() - INTERVAL '12 months'
       GROUP BY date_trunc('month', created_at)
-      ORDER BY month_date ASC
-    `
+      ORDER BY month_date ASC`,
+    )
 
-    // Top clients
-    const topClients = await sql`
-      SELECT
+    // Top clients with dynamic date filter – offset params after dateFilter params
+    const topClientsClause = clause.replace(/created_at/g, 'o.created_at')
+    const topClients = await db(
+      `SELECT
         c.id,
         c.name,
         COALESCE(SUM(o.total_value), 0) AS total_comprado,
         COUNT(o.id)                       AS total_pedidos
       FROM clients c
       JOIN orders o ON o.client_id = c.id
-      ${dateFilter}
+      ${topClientsClause}
       GROUP BY c.id, c.name
       ORDER BY total_comprado DESC
-      LIMIT 8
-    `
+      LIMIT 8`,
+      params,
+    )
 
-    // Best month (all time)
-    const bestMonths = await sql`
-      SELECT
+    // Best months all-time – no params
+    const bestMonths = await db(
+      `SELECT
         TO_CHAR(date_trunc('month', created_at), 'Mon/YYYY') AS month,
         date_trunc('month', created_at)                       AS month_date,
         COALESCE(SUM(total_value), 0)                         AS faturamento
       FROM orders
       GROUP BY date_trunc('month', created_at)
       ORDER BY faturamento DESC
-      LIMIT 8
-    `
+      LIMIT 8`,
+    )
 
     const totals = totalsQuery[0]
     const totalSales = Number(totals.total_sales)
@@ -91,20 +121,20 @@ export async function GET(req: Request) {
         total_orders: Number(totals.total_orders),
         margin_pct: margin,
       },
-      monthly: monthly.map(r => ({
+      monthly: monthly.map((r: Record<string, unknown>) => ({
         month: r.month as string,
         faturamento: Number(r.faturamento),
         custo: Number(r.custo),
         lucro: Number(r.lucro),
       })),
-      top_clients: topClients.map((c, i) => ({
+      top_clients: topClients.map((c: Record<string, unknown>, i: number) => ({
         rank: i + 1,
         id: c.id,
         name: c.name,
         total: Number(c.total_comprado),
         orders: Number(c.total_pedidos),
       })),
-      best_months: bestMonths.map(r => ({
+      best_months: bestMonths.map((r: Record<string, unknown>) => ({
         month: r.month as string,
         faturamento: Number(r.faturamento),
       })),
@@ -114,3 +144,4 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Erro ao buscar dados financeiros' }, { status: 500 })
   }
 }
+
