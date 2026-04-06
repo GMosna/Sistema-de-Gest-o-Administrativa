@@ -109,12 +109,16 @@ export default function PedidosPage() {
             <div className="px-6 py-14 text-center">
               <ShoppingBag className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
               <p className="text-sm font-medium text-muted-foreground">
-                {search ? 'Nenhum pedido encontrado' : 'Nenhum pedido ainda'}
+                {search ? 'Nenhum pedido encontrado' : 'Nenhum pedido criado ainda'}
               </p>
-              {!search && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  <Link href="/pedidos/novo" className="text-primary hover:underline">Crie seu primeiro pedido</Link>
-                </p>
+              {search ? (
+                <p className="text-xs text-muted-foreground mt-1">Tente buscar por outro cliente ou numero</p>
+              ) : (
+                <Link href="/pedidos/novo">
+                  <Button size="sm" className="mt-4 gap-2">
+                    <Plus className="w-3.5 h-3.5" /> Criar primeiro pedido
+                  </Button>
+                </Link>
               )}
             </div>
           ) : (

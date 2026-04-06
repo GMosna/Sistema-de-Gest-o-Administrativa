@@ -126,12 +126,14 @@ export default function ClientesPage() {
             <div className="px-6 py-14 text-center">
               <Users className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
               <p className="text-sm font-medium text-muted-foreground">
-                {search ? 'Nenhum cliente encontrado' : 'Nenhum cliente ainda'}
+                {search ? 'Nenhum cliente encontrado' : 'Nenhum cliente cadastrado ainda'}
               </p>
-              {!search && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  <button onClick={openCreate} className="text-primary hover:underline">Cadastre seu primeiro cliente</button>
-                </p>
+              {search ? (
+                <p className="text-xs text-muted-foreground mt-1">Tente buscar por outro nome ou telefone</p>
+              ) : (
+                <Button onClick={openCreate} size="sm" className="mt-4 gap-2">
+                  <Plus className="w-3.5 h-3.5" /> Cadastrar primeiro cliente
+                </Button>
               )}
             </div>
           ) : (
