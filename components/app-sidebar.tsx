@@ -21,7 +21,7 @@ const navItems = [
   { label: 'Pedidos',    href: '/pedidos',     icon: ShoppingBag },
   { label: 'Financeiro', href: '/financeiro',  icon: BarChart2 },
   { label: 'Parcelas',   href: '/parcelas',    icon: CreditCard },
-  { label: 'Relatorios', href: '/relatorios',  icon: FileText },
+  { label: 'PDF Fornecedor', href: '/relatorios',  icon: FileText },
 ]
 
 export default function Sidebar() {

@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
-import { Plus, Trash2, ArrowLeft, Lock } from 'lucide-react'
+import { Plus, Trash2, ArrowLeft, Lock, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import Link from 'next/link'
 import { addMonths, format } from 'date-fns'
 import type { Client } from '@/lib/types'
@@ -45,6 +46,12 @@ const emptyItem = (): Item => ({
 
 type InstallmentRow = { value: string; due_date: string }
 
+type FormErrors = {
+  client?: boolean
+  supplier?: boolean
+  items?: { [key: number]: { product_code?: boolean; price?: boolean; quantity?: boolean } }
+}
+
 export default function NovoPedidoPage() {
   const router = useRouter()
   const { data: clients } = useSWR<Client[]>('/api/clients', fetcher)
@@ -56,9 +63,12 @@ export default function NovoPedidoPage() {
   const [numInstallments, setNumInstallments] = useState(2)
   const [installments, setInstallments] = useState<InstallmentRow[]>([])
   const [firstDueDate, setFirstDueDate] = useState(format(addMonths(new Date(), 1), 'yyyy-MM-dd'))
+  const [supplierName, setSupplierName] = useState('')
   const [supplierCost, setSupplierCost] = useState('')
   const [shippingCost, setShippingCost] = useState('')
   const [saving, setSaving] = useState(false)
+  const [errors, setErrors] = useState<FormErrors>({})
+  const [showGlobalError, setShowGlobalError] = useState(false)
 
   const total = useMemo(
     () =>
@@ -97,8 +107,61 @@ export default function NovoPedidoPage() {
     setInstallments(prev => prev.map((inst, i) => (i === index ? { ...inst, [field]: value } : inst)))
   }
 
+  function validateForm(): boolean {
+    const newErrors: FormErrors = {}
+    let hasError = false
+
+    // Validar cliente
+    if (!clientId) {
+      newErrors.client = true
+      hasError = true
+    }
+
+    // Validar fornecedor
+    if (!supplierName.trim()) {
+      newErrors.supplier = true
+      hasError = true
+    }
+
+    // Validar itens
+    const itemErrors: FormErrors['items'] = {}
+    items.forEach((item, index) => {
+      const itemError: { product_code?: boolean; price?: boolean; quantity?: boolean } = {}
+      
+      if (!item.product_code.trim()) {
+        itemError.product_code = true
+        hasError = true
+      }
+      if (!item.price || parseFloat(item.price) <= 0) {
+        itemError.price = true
+        hasError = true
+      }
+      if (!item.quantity || parseInt(item.quantity) <= 0) {
+        itemError.quantity = true
+        hasError = true
+      }
+      
+      if (Object.keys(itemError).length > 0) {
+        itemErrors[index] = itemError
+      }
+    })
+
+    if (Object.keys(itemErrors).length > 0) {
+      newErrors.items = itemErrors
+    }
+
+    // Validar se tem pelo menos 1 item
+    if (items.length === 0) {
+      hasError = true
+    }
+
+    setErrors(newErrors)
+    setShowGlobalError(hasError)
+    return !hasError
+  }
+
   async function handleSubmit() {
-    if (!clientId || items.some(i => !i.product_code || !i.product_name || !i.price)) return
+    if (!validateForm()) return
     setSaving(true)
     try {
       const res = await fetch('/api/orders', {
@@ -114,6 +177,7 @@ export default function NovoPedidoPage() {
           payment_method: paymentMethod,
           pix_key: paymentMethod === 'pix' ? pixKey : null,
           installments_data: paymentMethod === 'installments' ? installments : [],
+          supplier_name: supplierName.trim(),
           supplier_cost: parseFloat(supplierCost) || 0,
           shipping_cost: parseFloat(shippingCost) || 0,
         }),
@@ -140,20 +204,41 @@ export default function NovoPedidoPage() {
       </div>
 
       <div className="space-y-6">
+        {/* Global Error Alert */}
+        {showGlobalError && (
+          <Alert variant="destructive" className="bg-red-50 border-red-200">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Nao foi possivel criar o pedido. Corrija os campos destacados.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Client */}
         <Card>
-          <CardHeader><CardTitle className="text-base">Cliente</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">Cliente *</CardTitle></CardHeader>
           <CardContent>
-            <Select value={clientId} onValueChange={setClientId}>
-              <SelectTrigger className="max-w-sm">
-                <SelectValue placeholder="Selecione um cliente" />
-              </SelectTrigger>
-              <SelectContent>
-                {clients?.map(c => (
-                  <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="space-y-1.5">
+              <Select 
+                value={clientId} 
+                onValueChange={(v) => {
+                  setClientId(v)
+                  if (errors.client) setErrors(prev => ({ ...prev, client: false }))
+                }}
+              >
+                <SelectTrigger className={`max-w-sm ${errors.client ? 'border-red-500 focus:ring-red-500' : ''}`}>
+                  <SelectValue placeholder="Selecione um cliente" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clients?.map(c => (
+                    <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.client && (
+                <p className="text-xs text-red-500">Este campo e obrigatorio</p>
+              )}
+            </div>
           </CardContent>
         </Card>
 
@@ -181,12 +266,24 @@ export default function NovoPedidoPage() {
                     <Label className="text-xs">Codigo *</Label>
                     <Input
                       value={item.product_code}
-                      onChange={e => updateItem(index, 'product_code', e.target.value)}
+                      onChange={e => {
+                        updateItem(index, 'product_code', e.target.value)
+                        if (errors.items?.[index]?.product_code) {
+                          setErrors(prev => ({
+                            ...prev,
+                            items: { ...prev.items, [index]: { ...prev.items?.[index], product_code: false } }
+                          }))
+                        }
+                      }}
                       placeholder="COD-001"
+                      className={errors.items?.[index]?.product_code ? 'border-red-500' : ''}
                     />
+                    {errors.items?.[index]?.product_code && (
+                      <p className="text-xs text-red-500">Este campo e obrigatorio</p>
+                    )}
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Nome do Produto *</Label>
+                    <Label className="text-xs">Nome do Produto</Label>
                     <Input
                       value={item.product_name}
                       onChange={e => updateItem(index, 'product_name', e.target.value)}
@@ -216,9 +313,21 @@ export default function NovoPedidoPage() {
                       min="0"
                       step="0.01"
                       value={item.price}
-                      onChange={e => updateItem(index, 'price', e.target.value)}
+                      onChange={e => {
+                        updateItem(index, 'price', e.target.value)
+                        if (errors.items?.[index]?.price) {
+                          setErrors(prev => ({
+                            ...prev,
+                            items: { ...prev.items, [index]: { ...prev.items?.[index], price: false } }
+                          }))
+                        }
+                      }}
                       placeholder="0,00"
+                      className={errors.items?.[index]?.price ? 'border-red-500' : ''}
                     />
+                    {errors.items?.[index]?.price && (
+                      <p className="text-xs text-red-500">Este campo e obrigatorio</p>
+                    )}
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Quantidade *</Label>
@@ -226,9 +335,21 @@ export default function NovoPedidoPage() {
                       type="number"
                       min="1"
                       value={item.quantity}
-                      onChange={e => updateItem(index, 'quantity', e.target.value)}
+                      onChange={e => {
+                        updateItem(index, 'quantity', e.target.value)
+                        if (errors.items?.[index]?.quantity) {
+                          setErrors(prev => ({
+                            ...prev,
+                            items: { ...prev.items, [index]: { ...prev.items?.[index], quantity: false } }
+                          }))
+                        }
+                      }}
                       placeholder="1"
+                      className={errors.items?.[index]?.quantity ? 'border-red-500' : ''}
                     />
+                    {errors.items?.[index]?.quantity && (
+                      <p className="text-xs text-red-500">Este campo e obrigatorio</p>
+                    )}
                   </div>
                 </div>
                 {item.price && item.quantity && (
@@ -359,6 +480,28 @@ export default function NovoPedidoPage() {
           </CardContent>
         </Card>
 
+        {/* Supplier Data */}
+        <Card>
+          <CardHeader><CardTitle className="text-base">Dados do Fornecedor *</CardTitle></CardHeader>
+          <CardContent>
+            <div className="space-y-1.5 max-w-sm">
+              <Label className="text-xs">Nome do Fornecedor *</Label>
+              <Input
+                value={supplierName}
+                onChange={e => {
+                  setSupplierName(e.target.value)
+                  if (errors.supplier) setErrors(prev => ({ ...prev, supplier: false }))
+                }}
+                placeholder="Ex: Fornecedor Silva, Atacado ABC..."
+                className={errors.supplier ? 'border-red-500' : ''}
+              />
+              {errors.supplier && (
+                <p className="text-xs text-red-500">Este campo e obrigatorio</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Supplier Costs */}
         <Card className="border-dashed border-muted-foreground/30">
           <CardHeader className="pb-3">
@@ -419,12 +562,7 @@ export default function NovoPedidoPage() {
             size="lg"
             className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-8 shadow-md hover:shadow-lg transition-shadow"
             onClick={handleSubmit}
-            disabled={
-              saving ||
-              !clientId ||
-              total === 0 ||
-              items.some(i => !i.product_code || !i.product_name || !i.price)
-            }
+            disabled={saving}
           >
             {saving ? 'Salvando...' : 'Criar Pedido'}
           </Button>
