@@ -15,6 +15,9 @@ export type Order = {
   payment_method: 'pix' | 'cash' | 'installments'
   pix_key: string | null
   status: 'pending' | 'paid' | 'partial'
+  supplier_cost: number
+  shipping_cost: number
+  profit: number
   created_at: string
   items?: OrderItem[]
   installments?: Installment[]

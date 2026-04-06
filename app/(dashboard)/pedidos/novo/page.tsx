@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
-import { Plus, Trash2, ArrowLeft } from 'lucide-react'
+import { Plus, Trash2, ArrowLeft, Lock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -56,6 +56,8 @@ export default function NovoPedidoPage() {
   const [numInstallments, setNumInstallments] = useState(2)
   const [installments, setInstallments] = useState<InstallmentRow[]>([])
   const [firstDueDate, setFirstDueDate] = useState(format(addMonths(new Date(), 1), 'yyyy-MM-dd'))
+  const [supplierCost, setSupplierCost] = useState('')
+  const [shippingCost, setShippingCost] = useState('')
   const [saving, setSaving] = useState(false)
 
   const total = useMemo(
@@ -112,6 +114,8 @@ export default function NovoPedidoPage() {
           payment_method: paymentMethod,
           pix_key: paymentMethod === 'pix' ? pixKey : null,
           installments_data: paymentMethod === 'installments' ? installments : [],
+          supplier_cost: parseFloat(supplierCost) || 0,
+          shipping_cost: parseFloat(shippingCost) || 0,
         }),
       })
       const order = await res.json()
@@ -350,6 +354,57 @@ export default function NovoPedidoPage() {
                     ))}
                   </div>
                 )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Supplier Costs */}
+        <Card className="border-dashed border-muted-foreground/30">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Lock className="w-4 h-4 text-muted-foreground" />
+              <CardTitle className="text-base">Custos do Fornecedor</CardTitle>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Estes dados sao internos e nao aparecem no PDF do cliente.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Valor pago ao fornecedor (R$)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={supplierCost}
+                  onChange={e => setSupplierCost(e.target.value)}
+                  placeholder="0,00"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Valor do frete (R$)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={shippingCost}
+                  onChange={e => setShippingCost(e.target.value)}
+                  placeholder="0,00"
+                />
+              </div>
+            </div>
+            {(supplierCost || shippingCost || total > 0) && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 flex items-center justify-between">
+                <p className="text-sm font-medium text-emerald-800">Lucro estimado</p>
+                <p className={`text-lg font-bold ${
+                  total - (parseFloat(supplierCost) || 0) - (parseFloat(shippingCost) || 0) >= 0
+                    ? 'text-emerald-700'
+                    : 'text-red-600'
+                }`}>
+                  {formatBRL(total - (parseFloat(supplierCost) || 0) - (parseFloat(shippingCost) || 0))}
+                </p>
               </div>
             )}
           </CardContent>

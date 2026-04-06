@@ -20,7 +20,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const { client_id, items, payment_method, pix_key, installments_data } = await req.json()
+    const { client_id, items, payment_method, pix_key, installments_data, supplier_cost, shipping_cost } = await req.json()
 
     if (!client_id || !items?.length) {
       return NextResponse.json({ error: 'Dados invalidos' }, { status: 400 })
@@ -31,9 +31,12 @@ export async function POST(req: Request) {
       0,
     )
 
+    const supplierCost = Number(supplier_cost) || 0
+    const shippingCost = Number(shipping_cost) || 0
+
     const [order] = await sql`
-      INSERT INTO orders (client_id, total_value, payment_method, pix_key, status)
-      VALUES (${client_id}, ${total_value}, ${payment_method}, ${pix_key || null}, 'pending')
+      INSERT INTO orders (client_id, total_value, payment_method, pix_key, status, supplier_cost, shipping_cost)
+      VALUES (${client_id}, ${total_value}, ${payment_method}, ${pix_key || null}, 'pending', ${supplierCost}, ${shippingCost})
       RETURNING *
     `
 

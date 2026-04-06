@@ -159,9 +159,15 @@ export default function ClientesPage() {
                               <Phone className="w-3 h-3" /> {client.phone}
                             </span>
                           )}
-                          <span className={`text-xs font-medium ${hasDebt ? 'text-red-600' : 'text-emerald-600'}`}>
-                            {hasDebt ? `${formatBRL(debt)} em aberto` : 'Sem pendencias'}
-                          </span>
+                          {hasDebt ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 border border-red-200">
+                              {formatBRL(debt)} em aberto
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 border border-emerald-200">
+                              Sem pendencias
+                            </span>
+                          )}
                         </div>
                       </div>
                       <ChevronRight className="w-4 h-4 text-muted-foreground ml-2 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />

@@ -3,7 +3,7 @@
 import { use } from 'react'
 import useSWR from 'swr'
 import Link from 'next/link'
-import { ArrowLeft, FileDown, CheckCircle2, AlertCircle } from 'lucide-react'
+import { ArrowLeft, FileDown, CheckCircle2, AlertCircle, Lock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -221,6 +221,37 @@ export default function PedidoDetailPage({ params }: { params: Promise<{ id: str
             </div>
           </CardContent>
         </Card>
+
+        {/* Internal Costs */}
+        {(Number(order.supplier_cost) > 0 || Number(order.shipping_cost) > 0) && (
+          <Card className="border-dashed border-muted-foreground/30">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2">
+                <Lock className="w-4 h-4 text-muted-foreground" />
+                <CardTitle className="text-base">Custos Internos</CardTitle>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Informacoes internas, nao aparecem no PDF do cliente.</p>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground text-xs mb-1">Custo Fornecedor</p>
+                  <p className="font-semibold">{formatBRL(Number(order.supplier_cost))}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-xs mb-1">Frete</p>
+                  <p className="font-semibold">{formatBRL(Number(order.shipping_cost))}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-emerald-600 mb-1">Lucro Liquido</p>
+                  <p className={`text-base font-bold ${Number(order.profit) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {formatBRL(Number(order.profit))}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Installments */}
         {order.payment_method === 'installments' && order.installments?.length > 0 && (

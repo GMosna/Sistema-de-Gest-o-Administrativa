@@ -2,7 +2,7 @@
 
 import useSWR from 'swr'
 import Link from 'next/link'
-import { TrendingUp, Clock, ShoppingBag, AlertTriangle, ArrowRight } from 'lucide-react'
+import { TrendingUp, Clock, ShoppingBag, AlertTriangle, ArrowRight, DollarSign, Truck, TrendingDown } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -48,7 +48,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Card className="hover:shadow-md transition-shadow">
           <CardContent className="pt-6 pb-5">
             <div className="flex items-start justify-between">
@@ -136,6 +136,61 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Profitability Section */}
+      <Card className="mb-8">
+        <CardHeader className="pb-3 border-b">
+          <CardTitle className="text-base font-semibold">Resumo Financeiro</CardTitle>
+        </CardHeader>
+        <CardContent className="pt-5">
+          {isLoading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <TrendingUp className="w-4 h-4 text-blue-500" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium">Faturamento</p>
+                  <p className="text-base font-bold text-foreground mt-0.5">{formatBRL(data?.total_sales ?? 0)}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-lg bg-orange-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <DollarSign className="w-4 h-4 text-orange-500" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium">Custo Fornecedores</p>
+                  <p className="text-base font-bold text-foreground mt-0.5">{formatBRL(data?.total_supplier_cost ?? 0)}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Truck className="w-4 h-4 text-slate-500" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium">Frete</p>
+                  <p className="text-base font-bold text-foreground mt-0.5">{formatBRL(data?.total_shipping_cost ?? 0)}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <TrendingDown className="w-4 h-4 text-emerald-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-emerald-600 font-medium">Lucro Liquido</p>
+                  <p className={`text-base font-bold mt-0.5 ${(data?.total_profit ?? 0) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {formatBRL(data?.total_profit ?? 0)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Recent Orders */}
       <Card>
