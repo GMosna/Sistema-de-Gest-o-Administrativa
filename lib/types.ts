@@ -14,7 +14,8 @@ export type Order = {
   total_value: number
   payment_method: 'pix' | 'cash' | 'installments'
   pix_key: string | null
-  status: 'pending' | 'paid' | 'partial'
+  status: 'pending' | 'paid' | 'partial' | 'delivered'
+  supplier_name: string | null
   supplier_cost: number
   shipping_cost: number
   profit: number
