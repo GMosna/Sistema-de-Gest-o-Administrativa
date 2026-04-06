@@ -8,6 +8,7 @@ import {
   ShoppingBag,
   CreditCard,
   FileText,
+  BarChart2,
   Menu,
   X,
 } from 'lucide-react'
@@ -15,11 +16,12 @@ import { useState } from 'react'
 import { cn } from '@/lib/utils'
 
 const navItems = [
-  { label: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { label: 'Clientes', href: '/clientes', icon: Users },
-  { label: 'Pedidos', href: '/pedidos', icon: ShoppingBag },
-  { label: 'Parcelas', href: '/parcelas', icon: CreditCard },
-  { label: 'Relatorios', href: '/relatorios', icon: FileText },
+  { label: 'Dashboard',  href: '/',           icon: LayoutDashboard },
+  { label: 'Clientes',   href: '/clientes',   icon: Users },
+  { label: 'Pedidos',    href: '/pedidos',     icon: ShoppingBag },
+  { label: 'Financeiro', href: '/financeiro',  icon: BarChart2 },
+  { label: 'Parcelas',   href: '/parcelas',    icon: CreditCard },
+  { label: 'Relatorios', href: '/relatorios',  icon: FileText },
 ]
 
 export default function Sidebar() {

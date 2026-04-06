@@ -6,7 +6,10 @@ export async function GET() {
     const [totals] = await sql`
       SELECT
         COALESCE(SUM(total_value), 0) AS total_sales,
-        COUNT(*) AS total_orders
+        COUNT(*) AS total_orders,
+        COALESCE(SUM(supplier_cost), 0) AS total_supplier_cost,
+        COALESCE(SUM(shipping_cost), 0) AS total_shipping_cost,
+        COALESCE(SUM(profit), 0) AS total_profit
       FROM orders
     `
     const [pending] = await sql`
@@ -32,6 +35,9 @@ export async function GET() {
     return NextResponse.json({
       total_sales: Number(totals.total_sales),
       total_orders: Number(totals.total_orders),
+      total_supplier_cost: Number(totals.total_supplier_cost),
+      total_shipping_cost: Number(totals.total_shipping_cost),
+      total_profit: Number(totals.total_profit),
       total_pending: Number(pending.total_pending),
       overdue_count: Number(overdue.overdue_count),
       overdue_value: Number(overdue.overdue_value),

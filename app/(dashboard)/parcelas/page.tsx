@@ -66,7 +66,7 @@ function getDueDateInfo(dueDateStr: string, status: string): DueDateInfo {
   }
   return {
     label: null,
-    rowClass: 'bg-slate-50/40',
+    rowClass: 'bg-slate-50',
     dotClass: 'bg-slate-300',
     badgeClass: 'bg-slate-100 text-slate-600 border-slate-200',
     badgeLabel: 'Pendente',
