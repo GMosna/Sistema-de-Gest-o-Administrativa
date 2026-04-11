@@ -2,11 +2,18 @@
 
 import useSWR from 'swr'
 import { useState, useMemo } from 'react'
-import { CheckCircle2, CircleDashed, AlertCircle, ArrowUpDown } from 'lucide-react'
+import { CheckCircle2, CircleDashed, AlertCircle, ArrowUpDown, CalendarDays, CalendarPlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Input } from '@/components/ui/input'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import { toast } from 'sonner'
 import {
   Select,
   SelectContent,
@@ -17,6 +24,7 @@ import {
 import { format, isToday, isPast, parseISO, isFuture } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import type { Client, Installment } from '@/lib/types'
+import { ResumoMes } from '@/components/resumo-mes'
 
 type StatusFilter = 'all' | 'pending' | 'overdue' | 'today' | 'paid'
 type SortOrder = 'asc' | 'desc'
@@ -84,6 +92,7 @@ export default function ParcelasPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc')
   const [search, setSearch] = useState('')
+  const [showResumoMes, setShowResumoMes] = useState(false)
 
   const url = clientFilter !== 'all' ? `/api/installments?client_id=${clientFilter}` : '/api/installments'
   const { data: installments, isLoading, mutate } = useSWR<Installment[]>(url, fetcher)
@@ -143,7 +152,17 @@ export default function ParcelasPage() {
           <h1 className="text-2xl font-semibold text-foreground tracking-tight">Parcelas</h1>
           <p className="text-muted-foreground mt-1 text-sm">Controle de pagamentos parcelados</p>
         </div>
+        <Button
+          variant="outline"
+          className="gap-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+          onClick={() => setShowResumoMes(true)}
+        >
+          <CalendarDays className="w-4 h-4" />
+          Resumo do Mes
+        </Button>
       </div>
+
+      <ResumoMes open={showResumoMes} onClose={() => setShowResumoMes(false)} />
 
       {/* Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
@@ -275,6 +294,28 @@ export default function ParcelasPage() {
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${info.badgeClass}`}>
                         {info.badgeLabel}
                       </span>
+                      {/* Botão Google Agenda */}
+                      <TooltipProvider delayDuration={200}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-1.5 text-xs h-7 px-2.5 border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
+                              onClick={() => toast.info('Em breve disponivel', {
+                                description: 'A integracao com o Google Agenda estara disponivel em breve.',
+                                duration: 3000,
+                              })}
+                            >
+                              <CalendarPlus className="w-3.5 h-3.5" />
+                              Agendar
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs">
+                            Adicionar vencimento no Google Agenda
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                       {inst.status !== 'paid' ? (
                         <Button
                           size="sm"

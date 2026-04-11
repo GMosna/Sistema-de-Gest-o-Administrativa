@@ -40,6 +40,7 @@ export type Installment = {
   order_id: number
   client_name?: string
   order_created_at?: string
+  supplier_name?: string | null
   installment_number?: number
   total_installments?: number
   value: number

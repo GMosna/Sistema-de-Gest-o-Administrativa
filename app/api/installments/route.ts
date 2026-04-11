@@ -12,6 +12,7 @@ export async function GET(req: Request) {
             i.*,
             c.name AS client_name,
             o.created_at AS order_created_at,
+            o.supplier_name AS supplier_name,
             ROW_NUMBER() OVER (PARTITION BY i.order_id ORDER BY i.due_date ASC) AS installment_number,
             COUNT(*) OVER (PARTITION BY i.order_id) AS total_installments
           FROM installments i
@@ -25,6 +26,7 @@ export async function GET(req: Request) {
             i.*,
             c.name AS client_name,
             o.created_at AS order_created_at,
+            o.supplier_name AS supplier_name,
             ROW_NUMBER() OVER (PARTITION BY i.order_id ORDER BY i.due_date ASC) AS installment_number,
             COUNT(*) OVER (PARTITION BY i.order_id) AS total_installments
           FROM installments i

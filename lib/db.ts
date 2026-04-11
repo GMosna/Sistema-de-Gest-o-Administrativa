@@ -175,7 +175,12 @@ function sql(strings: TemplateStringsArray, ...values: unknown[]): Promise<Row[]
     let rows = db.installments.map(i => {
       const order = db.orders.find(o => o.id === i.order_id)
       const client = db.clients.find(c => c.id === i.client_id)
-      return { ...i, client_name: client?.name ?? null, order_created_at: order?.created_at ?? null }
+      return {
+        ...i,
+        client_name: client?.name ?? null,
+        order_created_at: order?.created_at ?? null,
+        supplier_name: order?.supplier_name ?? null,
+      }
     })
     if (values.length > 0) {
       const idVal = values[0]
@@ -211,9 +216,14 @@ function sql(strings: TemplateStringsArray, ...values: unknown[]): Promise<Row[]
 
   // ── INSERT INTO order_items ───────────────────────────────────────────────
   if (/INSERT INTO order_items/.test(query)) {
-    const [order_id, product_code, product_name, size, color, price, quantity] = values
+    const [order_id, product_code, product_name, size, color, price, quantity, commission] = values
     const id = nextId('order_items')
-    const row: Row = { id, order_id, product_code, product_name, size: size ?? null, color: color ?? null, price: Number(price), quantity: Number(quantity) }
+    const row: Row = {
+      id, order_id, product_code, product_name,
+      size: size ?? null, color: color ?? null,
+      price: Number(price), quantity: Number(quantity),
+      commission: Number(commission) || 0,
+    }
     db.order_items.push(row)
     // Atualiza items dentro do pedido
     const order = db.orders.find(o => o.id === Number(order_id))
@@ -286,7 +296,7 @@ function sql(strings: TemplateStringsArray, ...values: unknown[]): Promise<Row[]
     return Promise.resolve([{ total_sales, total_orders, total_supplier_cost, total_shipping_cost, total_profit }])
   }
 
-  // ── SELECT total_pending das installments ────────────────────────────────
+  // ── SELECT total_pending das installments ─────���──────────────────────────
   if (/total_pending/.test(query)) {
     const total_pending = db.installments.filter(i => i.status === 'pending').reduce((s, i) => s + Number(i.value), 0)
     return Promise.resolve([{ total_pending }])
