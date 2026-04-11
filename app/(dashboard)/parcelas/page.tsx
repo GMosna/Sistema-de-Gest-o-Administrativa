@@ -2,11 +2,18 @@
 
 import useSWR from 'swr'
 import { useState, useMemo } from 'react'
-import { CheckCircle2, CircleDashed, AlertCircle, ArrowUpDown, CalendarDays } from 'lucide-react'
+import { CheckCircle2, CircleDashed, AlertCircle, ArrowUpDown, CalendarDays, CalendarPlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Input } from '@/components/ui/input'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import { toast } from 'sonner'
 import {
   Select,
   SelectContent,
@@ -287,6 +294,28 @@ export default function ParcelasPage() {
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${info.badgeClass}`}>
                         {info.badgeLabel}
                       </span>
+                      {/* Botão Google Agenda */}
+                      <TooltipProvider delayDuration={200}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-1.5 text-xs h-7 px-2.5 border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
+                              onClick={() => toast.info('Em breve disponivel', {
+                                description: 'A integracao com o Google Agenda estara disponivel em breve.',
+                                duration: 3000,
+                              })}
+                            >
+                              <CalendarPlus className="w-3.5 h-3.5" />
+                              Agendar
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs">
+                            Adicionar vencimento no Google Agenda
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                       {inst.status !== 'paid' ? (
                         <Button
                           size="sm"
