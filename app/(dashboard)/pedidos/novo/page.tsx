@@ -33,6 +33,8 @@ type Item = {
   color: string
   price: string
   quantity: string
+  commission: string
+  item_shipping: string
 }
 
 const emptyItem = (): Item => ({
@@ -42,7 +44,20 @@ const emptyItem = (): Item => ({
   color: '',
   price: '',
   quantity: '1',
+  commission: '',
+  item_shipping: '',
 })
+
+function calcItemTotal(item: Item): { base: number; commissionVal: number; shippingVal: number; total: number } {
+  const price = parseFloat(item.price) || 0
+  const qty = parseInt(item.quantity) || 0
+  const commPct = parseFloat(item.commission) || 0
+  const ship = parseFloat(item.item_shipping) || 0
+  const base = price * qty
+  const commissionVal = base * (commPct / 100)
+  const shippingVal = ship
+  return { base, commissionVal, shippingVal, total: base + commissionVal + shippingVal }
+}
 
 type InstallmentRow = { value: string; due_date: string }
 
@@ -71,12 +86,7 @@ export default function NovoPedidoPage() {
   const [showGlobalError, setShowGlobalError] = useState(false)
 
   const total = useMemo(
-    () =>
-      items.reduce((sum, i) => {
-        const price = parseFloat(i.price) || 0
-        const qty = parseInt(i.quantity) || 0
-        return sum + price * qty
-      }, 0),
+    () => items.reduce((sum, i) => sum + calcItemTotal(i).total, 0),
     [items],
   )
 
@@ -169,11 +179,16 @@ export default function NovoPedidoPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           client_id: parseInt(clientId),
-          items: items.map(i => ({
-            ...i,
-            price: parseFloat(i.price),
-            quantity: parseInt(i.quantity),
-          })),
+          items: items.map(i => {
+            const calc = calcItemTotal(i)
+            return {
+              ...i,
+              price: calc.total / (parseInt(i.quantity) || 1),
+              quantity: parseInt(i.quantity),
+              commission: parseFloat(i.commission) || 0,
+              item_shipping: parseFloat(i.item_shipping) || 0,
+            }
+          }),
           payment_method: paymentMethod,
           pix_key: paymentMethod === 'pix' ? pixKey : null,
           installments_data: paymentMethod === 'installments' ? installments : [],
@@ -351,12 +366,54 @@ export default function NovoPedidoPage() {
                       <p className="text-xs text-red-500">Este campo e obrigatorio</p>
                     )}
                   </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Comissao (%)</Label>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={item.commission}
+                        onChange={e => updateItem(index, 'commission', e.target.value)}
+                        placeholder="Ex: 10"
+                        className="pr-7"
+                      />
+                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium">%</span>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Frete repassado (R$)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={item.item_shipping}
+                      onChange={e => updateItem(index, 'item_shipping', e.target.value)}
+                      placeholder="Ex: 4,50"
+                    />
+                  </div>
                 </div>
-                {item.price && item.quantity && (
-                  <p className="text-xs text-muted-foreground text-right">
-                    Subtotal: {formatBRL((parseFloat(item.price) || 0) * (parseInt(item.quantity) || 0))}
-                  </p>
-                )}
+                {item.price && item.quantity && (() => {
+                  const calc = calcItemTotal(item)
+                  const hasExtras = calc.commissionVal > 0 || calc.shippingVal > 0
+                  return (
+                    <div className="mt-2 text-right space-y-0.5">
+                      {hasExtras ? (
+                        <p className="text-xs text-muted-foreground">
+                          {formatBRL(calc.base)}
+                          {calc.commissionVal > 0 && <> + comissao {formatBRL(calc.commissionVal)}</>}
+                          {calc.shippingVal > 0 && <> + frete {formatBRL(calc.shippingVal)}</>}
+                          {' = '}
+                          <span className="font-semibold text-foreground">{formatBRL(calc.total)}</span>
+                        </p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          Subtotal: <span className="font-semibold text-foreground">{formatBRL(calc.base)}</span>
+                        </p>
+                      )}
+                    </div>
+                  )
+                })()}
               </div>
             ))}
 
@@ -550,6 +607,9 @@ export default function NovoPedidoPage() {
                 </p>
               </div>
             )}
+            <p className="text-xs text-muted-foreground">
+              O frete repassado ao cliente ja esta embutido no total do pedido. O lucro acima reflete o total cobrado menos os custos internos.
+            </p>
           </CardContent>
         </Card>
 

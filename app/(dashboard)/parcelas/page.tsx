@@ -2,7 +2,7 @@
 
 import useSWR from 'swr'
 import { useState, useMemo } from 'react'
-import { CheckCircle2, CircleDashed, AlertCircle, ArrowUpDown } from 'lucide-react'
+import { CheckCircle2, CircleDashed, AlertCircle, ArrowUpDown, CalendarDays } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -17,6 +17,7 @@ import {
 import { format, isToday, isPast, parseISO, isFuture } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import type { Client, Installment } from '@/lib/types'
+import { ResumoMes } from '@/components/resumo-mes'
 
 type StatusFilter = 'all' | 'pending' | 'overdue' | 'today' | 'paid'
 type SortOrder = 'asc' | 'desc'
@@ -84,6 +85,7 @@ export default function ParcelasPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc')
   const [search, setSearch] = useState('')
+  const [showResumoMes, setShowResumoMes] = useState(false)
 
   const url = clientFilter !== 'all' ? `/api/installments?client_id=${clientFilter}` : '/api/installments'
   const { data: installments, isLoading, mutate } = useSWR<Installment[]>(url, fetcher)
@@ -143,7 +145,17 @@ export default function ParcelasPage() {
           <h1 className="text-2xl font-semibold text-foreground tracking-tight">Parcelas</h1>
           <p className="text-muted-foreground mt-1 text-sm">Controle de pagamentos parcelados</p>
         </div>
+        <Button
+          variant="outline"
+          className="gap-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+          onClick={() => setShowResumoMes(true)}
+        >
+          <CalendarDays className="w-4 h-4" />
+          Resumo do Mes
+        </Button>
       </div>
+
+      <ResumoMes open={showResumoMes} onClose={() => setShowResumoMes(false)} />
 
       {/* Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">

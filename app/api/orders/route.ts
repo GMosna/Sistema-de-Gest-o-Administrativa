@@ -43,8 +43,8 @@ export async function POST(req: Request) {
 
     for (const item of items) {
       await sql`
-        INSERT INTO order_items (order_id, product_code, product_name, size, color, price, quantity)
-        VALUES (${order.id}, ${item.product_code}, ${item.product_name}, ${item.size || null}, ${item.color || null}, ${item.price}, ${item.quantity})
+        INSERT INTO order_items (order_id, product_code, product_name, size, color, price, quantity, commission, item_shipping)
+        VALUES (${order.id}, ${item.product_code}, ${item.product_name}, ${item.size || null}, ${item.color || null}, ${item.price}, ${item.quantity}, ${item.commission || 0}, ${item.item_shipping || 0})
       `
     }
 

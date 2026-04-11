@@ -2,7 +2,7 @@
 
 import useSWR from 'swr'
 import { useState, useMemo } from 'react'
-import { FileDown, FileText, ShoppingBag } from 'lucide-react'
+import { FileDown, FileText, ShoppingBag, CalendarDays } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -20,6 +20,7 @@ import { format, startOfWeek, startOfMonth, endOfMonth, endOfWeek, parseISO, isW
 import { ptBR } from 'date-fns/locale'
 import Link from 'next/link'
 import type { Client, Order, OrderItem } from '@/lib/types'
+import { ResumoMes } from '@/components/resumo-mes'
 
 const fetcher = (url: string) => fetch(url).then(r => r.json())
 const formatBRL = (v: number) =>
@@ -108,6 +109,7 @@ export default function PDFFornecedorPage() {
   const [customFrom, setCustomFrom]       = useState('')
   const [customTo, setCustomTo]           = useState('')
   const [selected, setSelected]           = useState<Set<number>>(new Set())
+  const [showResumoMes, setShowResumoMes] = useState(false)
 
   const filtered = useMemo(() => {
     if (!orders) return []
@@ -173,20 +175,32 @@ export default function PDFFornecedorPage() {
           <h1 className="text-2xl font-semibold text-foreground tracking-tight">PDF Fornecedor</h1>
           <p className="text-muted-foreground mt-1 text-sm">Selecione os pedidos e exporte o PDF para o fornecedor</p>
         </div>
-        <Button
-          size="lg"
-          className={`gap-2 font-semibold px-5 shadow-sm transition-colors ${
-            exportCount > 0
-              ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-              : 'bg-muted text-muted-foreground cursor-not-allowed'
-          }`}
-          onClick={() => exportCount > 0 && generateBatchPDF(exportTarget)}
-          disabled={exportCount === 0}
-        >
-          <FileDown className="w-4 h-4" />
-          Exportar PDF ({exportCount} {exportCount === 1 ? 'pedido' : 'pedidos'})
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          <Button
+            variant="outline"
+            className="gap-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+            onClick={() => setShowResumoMes(true)}
+          >
+            <CalendarDays className="w-4 h-4" />
+            Resumo Mensal
+          </Button>
+          <Button
+            size="lg"
+            className={`gap-2 font-semibold px-5 shadow-sm transition-colors ${
+              exportCount > 0
+                ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                : 'bg-muted text-muted-foreground cursor-not-allowed'
+            }`}
+            onClick={() => exportCount > 0 && generateBatchPDF(exportTarget)}
+            disabled={exportCount === 0}
+          >
+            <FileDown className="w-4 h-4" />
+            Exportar PDF ({exportCount} {exportCount === 1 ? 'pedido' : 'pedidos'})
+          </Button>
+        </div>
       </div>
+
+      <ResumoMes open={showResumoMes} onClose={() => setShowResumoMes(false)} />
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-5">
