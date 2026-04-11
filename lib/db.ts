@@ -216,14 +216,13 @@ function sql(strings: TemplateStringsArray, ...values: unknown[]): Promise<Row[]
 
   // ── INSERT INTO order_items ───────────────────────────────────────────────
   if (/INSERT INTO order_items/.test(query)) {
-    const [order_id, product_code, product_name, size, color, price, quantity, commission, item_shipping] = values
+    const [order_id, product_code, product_name, size, color, price, quantity, commission] = values
     const id = nextId('order_items')
     const row: Row = {
       id, order_id, product_code, product_name,
       size: size ?? null, color: color ?? null,
       price: Number(price), quantity: Number(quantity),
       commission: Number(commission) || 0,
-      item_shipping: Number(item_shipping) || 0,
     }
     db.order_items.push(row)
     // Atualiza items dentro do pedido

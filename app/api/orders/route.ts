@@ -20,16 +20,19 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const { client_id, items, payment_method, pix_key, installments_data, supplier_name, supplier_cost, shipping_cost } = await req.json()
+    const { client_id, items, payment_method, pix_key, installments_data, supplier_name, supplier_cost, shipping_cost, order_shipping } = await req.json()
 
     if (!client_id || !items?.length) {
       return NextResponse.json({ error: 'Dados invalidos' }, { status: 400 })
     }
 
-    const total_value = items.reduce(
-      (sum: number, item: { price: number; quantity: number }) => sum + item.price * item.quantity,
-      0,
-    )
+    const orderShipping = Number(order_shipping) || 0
+
+    const total_value =
+      items.reduce(
+        (sum: number, item: { price: number; quantity: number }) => sum + item.price * item.quantity,
+        0,
+      ) + orderShipping
 
     const supplierName = supplier_name?.trim() || null
     const supplierCost = Number(supplier_cost) || 0
@@ -43,8 +46,8 @@ export async function POST(req: Request) {
 
     for (const item of items) {
       await sql`
-        INSERT INTO order_items (order_id, product_code, product_name, size, color, price, quantity, commission, item_shipping)
-        VALUES (${order.id}, ${item.product_code}, ${item.product_name}, ${item.size || null}, ${item.color || null}, ${item.price}, ${item.quantity}, ${item.commission || 0}, ${item.item_shipping || 0})
+        INSERT INTO order_items (order_id, product_code, product_name, size, color, price, quantity, commission)
+        VALUES (${order.id}, ${item.product_code}, ${item.product_name}, ${item.size || null}, ${item.color || null}, ${item.price}, ${item.quantity}, ${item.commission || 0})
       `
     }
 

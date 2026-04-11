@@ -210,10 +210,23 @@ export default function PedidoDetailPage({ params }: { params: Promise<{ id: str
                 <tfoot>
                   <tr className="border-t border-border bg-muted/30">
                     <td colSpan={4} className="px-6 py-3 text-sm text-muted-foreground">
-                      Total: {order.items?.reduce((s, i) => s + i.quantity, 0)} itens
+                      {order.items?.reduce((s, i) => s + i.quantity, 0)} {order.items?.reduce((s, i) => s + i.quantity, 0) === 1 ? 'item' : 'itens'}
                     </td>
-                    <td colSpan={3} className="px-6 py-3 text-right font-semibold text-base">
-                      {formatBRL(Number(order.total_value))}
+                    <td colSpan={3} className="px-6 py-3 text-right">
+                      {(() => {
+                        const itemsTotal = order.items?.reduce((s, i) => s + Number(i.price) * i.quantity, 0) ?? 0
+                        const shipping = Number(order.total_value) - itemsTotal
+                        return (
+                          <div className="space-y-0.5">
+                            {shipping > 0.01 && (
+                              <p className="text-xs text-muted-foreground">
+                                Itens {formatBRL(itemsTotal)} + Frete {formatBRL(shipping)}
+                              </p>
+                            )}
+                            <p className="font-semibold text-base">{formatBRL(Number(order.total_value))}</p>
+                          </div>
+                        )
+                      })()}
                     </td>
                   </tr>
                 </tfoot>
