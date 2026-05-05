@@ -104,10 +104,7 @@ export async function GET(req: Request) {
       })
     }
 
-    const clientTotals: Record
-      number,
-      { id: number; name: string; total: number; orders: number }
-    > = {}
+    const clientTotals: Record<number, { id: number; name: string; total: number; orders: number }> = {}
 
     orders.forEach(order => {
       const clientId = order.client.id
