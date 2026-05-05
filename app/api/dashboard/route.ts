@@ -3,56 +3,83 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET() {
   try {
-    const totals = await prisma.order.aggregate({
+    // Buscar totais dos pedidos
+    const ordersAgg = await prisma.order.aggregate({
       _sum: {
         totalValue: true,
         supplierCost: true,
         shippingCost: true,
         profit: true,
       },
-      _count: { id: true },
+      _count: true,
     })
 
-    const pendingAgg = await prisma.installment.aggregate({
-      where: { status: 'pending' },
-      _sum: { value: true },
+    // Buscar total de parcelas pendentes
+    const installmentsAgg = await prisma.installment.aggregate({
+      where: {
+        status: 'pending',
+      },
+      _sum: {
+        value: true,
+      },
     })
 
+    // Buscar parcelas atrasadas
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
-    const overdueAgg = await prisma.installment.aggregate({
-      where: { status: 'pending', dueDate: { lt: today } },
-      _sum: { value: true },
-      _count: { id: true },
+    const overdueInstallments = await prisma.installment.findMany({
+      where: {
+        status: 'pending',
+        dueDate: {
+          lt: today,
+        },
+      },
     })
 
+    const overdueCount = overdueInstallments.length
+    const overdueValue = overdueInstallments.reduce(
+      (sum, inst) => sum + Number(inst.value),
+      0
+    )
+
+    // Buscar pedidos recentes (últimos 8)
     const recentOrders = await prisma.order.findMany({
       take: 8,
-      orderBy: { createdAt: 'desc' },
-      include: { client: { select: { name: true } } },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      include: {
+        client: {
+          select: {
+            name: true,
+          },
+        },
+      },
     })
 
+    const recentOrdersFormatted = recentOrders.map(order => ({
+      id: order.id,
+      total_value: order.totalValue,
+      payment_method: order.paymentMethod,
+      status: order.status,
+      created_at: order.createdAt,
+      client_name: order.client.name,
+    }))
+
     return NextResponse.json({
-      total_sales: Number(totals._sum.totalValue ?? 0),
-      total_orders: totals._count.id,
-      total_supplier_cost: Number(totals._sum.supplierCost ?? 0),
-      total_shipping_cost: Number(totals._sum.shippingCost ?? 0),
-      total_profit: Number(totals._sum.profit ?? 0),
-      total_pending: Number(pendingAgg._sum.value ?? 0),
-      overdue_count: overdueAgg._count.id,
-      overdue_value: Number(overdueAgg._sum.value ?? 0),
-      recent_orders: recentOrders.map((o) => ({
-        id: o.id,
-        total_value: Number(o.totalValue),
-        payment_method: o.paymentMethod,
-        status: o.status,
-        created_at: o.createdAt,
-        client_name: o.client.name,
-      })),
+      total_sales: Number(ordersAgg._sum.totalValue) || 0,
+      total_orders: ordersAgg._count || 0,
+      total_supplier_cost: Number(ordersAgg._sum.supplierCost) || 0,
+      total_shipping_cost: Number(ordersAgg._sum.shippingCost) || 0,
+      total_profit: Number(ordersAgg._sum.profit) || 0,
+      total_pending: Number(installmentsAgg._sum.value) || 0,
+      overdue_count: overdueCount,
+      overdue_value: overdueValue,
+      recent_orders: recentOrdersFormatted,
     })
   } catch (error) {
     console.error('[GET /api/dashboard]', error)
-    return NextResponse.json({ error: 'Erro ao buscar dados' }, { status: 500 })
+    return NextResponse.json({ error: 'Erro ao buscar dados do dashboard' }, { status: 500 })
   }
 }

@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     const { name, phone, notes, email, address } = await req.json()
 
     if (!name || name.trim() === '') {
-      return NextResponse.json({ error: 'Nome obrigatorio' }, { status: 400 })
+      return NextResponse.json({ error: 'Nome é obrigatório' }, { status: 400 })
     }
 
     const client = await prisma.client.create({

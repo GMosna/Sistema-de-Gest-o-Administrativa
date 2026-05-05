@@ -1,103 +1,166 @@
 import { NextResponse } from 'next/server'
-import { format, subMonths } from 'date-fns'
-import { ptBR } from 'date-fns/locale'
 import { prisma } from '@/lib/prisma'
-
-type OrderRow = {
-  id: number
-  clientId: number
-  totalValue: unknown
-  supplierCost: unknown
-  shippingCost: unknown
-  profit: unknown
-  createdAt: Date
-  client: { id: number; name: string }
-}
-
-function filterByPeriod(orders: OrderRow[], period: string, monthParam: string | null, yearParam: string | null): OrderRow[] {
-  const now = new Date()
-  return orders.filter((o) => {
-    const d = new Date(o.createdAt)
-    if (period === 'week') return d >= new Date(now.getTime() - 7 * 86400000)
-    if (period === 'month') return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
-    if (period === 'quarter') return d >= new Date(now.getTime() - 90 * 86400000)
-    if (period === 'year') return d.getFullYear() === now.getFullYear()
-    if (period === 'custom' && monthParam) {
-      const [y, m] = monthParam.split('-').map(Number)
-      return d.getFullYear() === y && d.getMonth() + 1 === m
-    }
-    if (period === 'custom_year' && yearParam) return d.getFullYear() === Number(yearParam)
-    return true
-  })
-}
+import { format, subMonths, startOfMonth, endOfMonth, subDays } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url)
-  const period = searchParams.get('period') ?? 'month'
-  const monthParam = searchParams.get('month')
-  const yearParam = searchParams.get('year')
-
   try {
-    const allOrders = await prisma.order.findMany({
-      include: { client: { select: { id: true, name: true } } },
+    const { searchParams } = new URL(req.url)
+    const period = searchParams.get('period') || 'month'
+    const month = searchParams.get('month')
+    const year = searchParams.get('year')
+
+    let startDate: Date
+    let endDate: Date = new Date()
+
+    switch (period) {
+      case 'week':
+        startDate = subDays(endDate, 7)
+        break
+      case 'month':
+        startDate = startOfMonth(endDate)
+        endDate = endOfMonth(endDate)
+        break
+      case 'quarter':
+        startDate = subDays(endDate, 90)
+        break
+      case 'year':
+        startDate = new Date(endDate.getFullYear(), 0, 1)
+        break
+      case 'custom':
+        if (month) {
+          const [y, m] = month.split('-').map(Number)
+          startDate = new Date(y, m - 1, 1)
+          endDate = endOfMonth(startDate)
+        } else {
+          startDate = startOfMonth(endDate)
+          endDate = endOfMonth(endDate)
+        }
+        break
+      case 'custom_year':
+        if (year) {
+          const y = parseInt(year)
+          startDate = new Date(y, 0, 1)
+          endDate = new Date(y, 11, 31)
+        } else {
+          startDate = new Date(endDate.getFullYear(), 0, 1)
+        }
+        break
+      default:
+        startDate = startOfMonth(endDate)
+        endDate = endOfMonth(endDate)
+    }
+
+    const orders = await prisma.order.findMany({
+      where: {
+        createdAt: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      include: {
+        client: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
     })
 
-    const filtered = filterByPeriod(allOrders as OrderRow[], period, monthParam, yearParam)
+    const totalSales = orders.reduce((sum, o) => sum + Number(o.totalValue), 0)
+    const totalSupplierCost = orders.reduce((sum, o) => sum + Number(o.supplierCost), 0)
+    const totalShippingCost = orders.reduce((sum, o) => sum + Number(o.shippingCost), 0)
+    const totalProfit = orders.reduce((sum, o) => sum + Number(o.profit), 0)
+    const marginPct = totalSales > 0 ? Math.round((totalProfit / totalSales) * 100) : 0
 
-    const total_sales = filtered.reduce((s, o) => s + Number(o.totalValue), 0)
-    const total_supplier_cost = filtered.reduce((s, o) => s + Number(o.supplierCost), 0)
-    const total_shipping_cost = filtered.reduce((s, o) => s + Number(o.shippingCost), 0)
-    const total_profit = filtered.reduce((s, o) => s + Number(o.profit), 0)
-    const margin = total_sales > 0 ? Math.round((total_profit / total_sales) * 100) : 0
+    const monthlyData = []
+    for (let i = 11; i >= 0; i--) {
+      const monthDate = subMonths(new Date(), i)
+      const monthStart = startOfMonth(monthDate)
+      const monthEnd = endOfMonth(monthDate)
 
-    const monthly = Array.from({ length: 12 }, (_, i) => {
-      const m = subMonths(new Date(), 11 - i)
-      const monthOrders = (allOrders as OrderRow[]).filter((o) => {
-        const d = new Date(o.createdAt)
-        return d.getMonth() === m.getMonth() && d.getFullYear() === m.getFullYear()
+      const monthOrders = await prisma.order.findMany({
+        where: {
+          createdAt: {
+            gte: monthStart,
+            lte: monthEnd,
+          },
+        },
       })
-      return {
-        month: format(m, 'MMM/yyyy', { locale: ptBR }),
-        faturamento: monthOrders.reduce((s, o) => s + Number(o.totalValue), 0),
-        custo: monthOrders.reduce((s, o) => s + Number(o.supplierCost) + Number(o.shippingCost), 0),
-        lucro: monthOrders.reduce((s, o) => s + Number(o.profit), 0),
+
+      const faturamento = monthOrders.reduce((sum, o) => sum + Number(o.totalValue), 0)
+      const custo = monthOrders.reduce(
+        (sum, o) => sum + Number(o.supplierCost) + Number(o.shippingCost),
+        0
+      )
+      const lucro = monthOrders.reduce((sum, o) => sum + Number(o.profit), 0)
+
+      monthlyData.push({
+        month: format(monthDate, 'MMM/yyyy', { locale: ptBR }),
+        faturamento,
+        custo,
+        lucro,
+      })
+    }
+
+    const clientTotals: Record
+      number,
+      { id: number; name: string; total: number; orders: number }
+    > = {}
+
+    orders.forEach(order => {
+      const clientId = order.client.id
+      if (!clientTotals[clientId]) {
+        clientTotals[clientId] = {
+          id: clientId,
+          name: order.client.name,
+          total: 0,
+          orders: 0,
+        }
       }
+      clientTotals[clientId].total += Number(order.totalValue)
+      clientTotals[clientId].orders += 1
     })
 
-    const clientTotals: Record<number, { id: number; name: string; total: number; orders: number }> = {}
-    filtered.forEach((o) => {
-      const cid = o.clientId
-      if (!clientTotals[cid]) clientTotals[cid] = { id: cid, name: o.client.name, total: 0, orders: 0 }
-      clientTotals[cid].total += Number(o.totalValue)
-      clientTotals[cid].orders += 1
-    })
-    const top_clients = Object.values(clientTotals)
+    const topClients = Object.values(clientTotals)
       .sort((a, b) => b.total - a.total)
       .slice(0, 8)
       .map((c, i) => ({ rank: i + 1, ...c }))
 
-    const monthMap: Record<string, { month: string; faturamento: number }> = {}
-    ;(allOrders as OrderRow[]).forEach((o) => {
-      const key = format(new Date(o.createdAt), 'MMM/yyyy', { locale: ptBR })
-      if (!monthMap[key]) monthMap[key] = { month: key, faturamento: 0 }
-      monthMap[key].faturamento += Number(o.totalValue)
+    const allOrders = await prisma.order.findMany({
+      select: {
+        totalValue: true,
+        createdAt: true,
+      },
     })
-    const best_months = Object.values(monthMap)
+
+    const monthTotals: Record<string, { month: string; faturamento: number }> = {}
+
+    allOrders.forEach(order => {
+      const monthKey = format(new Date(order.createdAt), 'MMM/yyyy', { locale: ptBR })
+      if (!monthTotals[monthKey]) {
+        monthTotals[monthKey] = { month: monthKey, faturamento: 0 }
+      }
+      monthTotals[monthKey].faturamento += Number(order.totalValue)
+    })
+
+    const bestMonths = Object.values(monthTotals)
       .sort((a, b) => b.faturamento - a.faturamento)
       .slice(0, 8)
 
     return NextResponse.json({
       summary: {
-        total_sales,
-        total_supplier_cost,
-        total_shipping_cost,
-        total_profit,
-        total_orders: filtered.length,
-        margin_pct: margin,
+        total_sales: totalSales,
+        total_supplier_cost: totalSupplierCost,
+        total_shipping_cost: totalShippingCost,
+        total_profit: totalProfit,
+        total_orders: orders.length,
+        margin_pct: marginPct,
       },
-      monthly,
-      top_clients,
-      best_months,
+      monthly: monthlyData,
+      top_clients: topClients,
+      best_months: bestMonths,
     })
   } catch (error) {
     console.error('[GET /api/financeiro]', error)

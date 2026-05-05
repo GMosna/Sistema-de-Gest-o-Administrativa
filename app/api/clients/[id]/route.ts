@@ -1,30 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-function serializeItem(i: {
-  id: number
-  orderId: number
-  productCode: string
-  productName: string
-  size: string | null
-  color: string | null
-  price: unknown
-  quantity: number
-  commission: unknown
-}) {
-  return {
-    id: i.id,
-    order_id: i.orderId,
-    product_code: i.productCode,
-    product_name: i.productName,
-    size: i.size,
-    color: i.color,
-    price: Number(i.price),
-    quantity: i.quantity,
-    commission: Number(i.commission),
-  }
-}
-
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -32,14 +8,13 @@ export async function GET(
   try {
     const { id } = await params
     const clientId = parseInt(id)
-
     if (isNaN(clientId)) {
       return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
     }
 
     const client = await prisma.client.findUnique({ where: { id: clientId } })
     if (!client) {
-      return NextResponse.json({ error: 'Cliente nao encontrado' }, { status: 404 })
+      return NextResponse.json({ error: 'Cliente não encontrado' }, { status: 404 })
     }
 
     const orders = await prisma.order.findMany({
@@ -79,7 +54,17 @@ export async function GET(
         shipping_cost: Number(o.shippingCost),
         profit: Number(o.profit),
         created_at: o.createdAt,
-        items: o.items.map(serializeItem),
+        items: o.items.map((i) => ({
+          id: i.id,
+          order_id: i.orderId,
+          product_code: i.productCode,
+          product_name: i.productName,
+          size: i.size,
+          color: i.color,
+          price: Number(i.price),
+          quantity: i.quantity,
+          commission: Number(i.commission),
+        })),
       })),
       installments: installments.map((i) => ({
         id: i.id,
@@ -108,15 +93,13 @@ export async function PUT(
   try {
     const { id } = await params
     const clientId = parseInt(id)
-
     if (isNaN(clientId)) {
       return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
     }
 
     const { name, phone, notes, email, address } = await req.json()
-
     if (!name || name.trim() === '') {
-      return NextResponse.json({ error: 'Nome obrigatorio' }, { status: 400 })
+      return NextResponse.json({ error: 'Nome é obrigatório' }, { status: 400 })
     }
 
     const client = await prisma.client.update({
@@ -155,7 +138,6 @@ export async function DELETE(
   try {
     const { id } = await params
     const clientId = parseInt(id)
-
     if (isNaN(clientId)) {
       return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
     }

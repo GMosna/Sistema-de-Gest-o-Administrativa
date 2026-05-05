@@ -8,7 +8,6 @@ export async function GET(
   try {
     const { id } = await params
     const orderId = parseInt(id)
-
     if (isNaN(orderId)) {
       return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
     }
@@ -23,7 +22,7 @@ export async function GET(
     })
 
     if (!order) {
-      return NextResponse.json({ error: 'Pedido nao encontrado' }, { status: 404 })
+      return NextResponse.json({ error: 'Pedido não encontrado' }, { status: 404 })
     }
 
     return NextResponse.json({
@@ -76,12 +75,14 @@ export async function PUT(
   try {
     const { id } = await params
     const orderId = parseInt(id)
-
     if (isNaN(orderId)) {
       return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
     }
 
     const { status } = await req.json()
+    if (!status || !['pending', 'paid', 'partial', 'delivered'].includes(status)) {
+      return NextResponse.json({ error: 'Status inválido' }, { status: 400 })
+    }
 
     const order = await prisma.order.update({
       where: { id: orderId },
@@ -101,8 +102,11 @@ export async function PUT(
       profit: Number(order.profit),
       created_at: order.createdAt,
     })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[PUT /api/orders/:id]', error)
+    if (typeof error === 'object' && error !== null && 'code' in error && (error as { code: string }).code === 'P2025') {
+      return NextResponse.json({ error: 'Pedido não encontrado' }, { status: 404 })
+    }
     return NextResponse.json({ error: 'Erro ao atualizar pedido' }, { status: 500 })
   }
 }
@@ -114,15 +118,17 @@ export async function DELETE(
   try {
     const { id } = await params
     const orderId = parseInt(id)
-
     if (isNaN(orderId)) {
       return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
     }
 
     await prisma.order.delete({ where: { id: orderId } })
     return NextResponse.json({ success: true })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[DELETE /api/orders/:id]', error)
+    if (typeof error === 'object' && error !== null && 'code' in error && (error as { code: string }).code === 'P2025') {
+      return NextResponse.json({ error: 'Pedido não encontrado' }, { status: 404 })
+    }
     return NextResponse.json({ error: 'Erro ao deletar pedido' }, { status: 500 })
   }
 }

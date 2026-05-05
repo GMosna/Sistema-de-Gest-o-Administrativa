@@ -1,41 +1,42 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-export async function GET(req: Request) {
+export async function PUT(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    const { searchParams } = new URL(req.url)
-    const clientIdParam = searchParams.get('client_id')
+    const { id } = await params
+    const installmentId = parseInt(id)
 
-    const where = clientIdParam ? { clientId: parseInt(clientIdParam) } : {}
+    if (isNaN(installmentId)) {
+      return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
+    }
 
-    const installments = await prisma.installment.findMany({
-      where,
-      include: {
-        order: { select: { createdAt: true, supplierName: true } },
-        client: { select: { name: true } },
+    const { status } = await req.json()
+
+    if (!status || !['pending', 'paid'].includes(status)) {
+      return NextResponse.json({ error: 'Status inválido' }, { status: 400 })
+    }
+
+    const paidAt = status === 'paid' ? new Date() : null
+
+    const installment = await prisma.installment.update({
+      where: { id: installmentId },
+      data: {
+        status,
+        paidAt,
       },
-      orderBy: { dueDate: 'asc' },
     })
 
-    return NextResponse.json(
-      installments.map((i) => ({
-        id: i.id,
-        order_id: i.orderId,
-        client_id: i.clientId,
-        installment_number: i.installmentNumber,
-        total_installments: i.totalInstallments,
-        value: Number(i.value),
-        due_date: i.dueDate.toISOString().split('T')[0],
-        status: i.status,
-        paid_at: i.paidAt,
-        created_at: i.createdAt,
-        client_name: i.client?.name ?? null,
-        order_created_at: i.order.createdAt,
-        supplier_name: i.order.supplierName,
-      })),
-    )
-  } catch (error) {
-    console.error('[GET /api/installments]', error)
-    return NextResponse.json({ error: 'Erro ao buscar parcelas' }, { status: 500 })
+    return NextResponse.json(installment)
+  } catch (error: any) {
+    console.error('[PUT /api/installments/:id]', error)
+
+    if (error.code === 'P2025') {
+      return NextResponse.json({ error: 'Parcela não encontrada' }, { status: 404 })
+    }
+
+    return NextResponse.json({ error: 'Erro ao atualizar parcela' }, { status: 500 })
   }
 }

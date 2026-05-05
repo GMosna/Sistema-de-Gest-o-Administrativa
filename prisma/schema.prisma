@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Client {
@@ -15,10 +16,10 @@ model Client {
   address   String?
   notes     String?
   createdAt DateTime @default(now()) @map("created_at")
-
+  
   orders       Order[]
   installments Installment[]
-
+  
   @@map("clients")
 }
 
@@ -34,11 +35,11 @@ model Order {
   shippingCost  Decimal  @default(0) @map("shipping_cost") @db.Decimal(10, 2)
   profit        Decimal  @default(0) @db.Decimal(10, 2)
   createdAt     DateTime @default(now()) @map("created_at")
-
+  
   client       Client        @relation(fields: [clientId], references: [id], onDelete: Restrict)
   items        OrderItem[]
   installments Installment[]
-
+  
   @@map("orders")
 }
 
@@ -52,9 +53,10 @@ model OrderItem {
   price       Decimal @db.Decimal(10, 2)
   quantity    Int
   commission  Decimal @default(0) @db.Decimal(10, 2)
-
+  shipping    Decimal @default(0) @db.Decimal(10, 2)
+  
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
-
+  
   @@map("order_items")
 }
 
@@ -69,9 +71,9 @@ model Installment {
   status            String    @default("pending")
   paidAt            DateTime? @map("paid_at")
   createdAt         DateTime  @default(now()) @map("created_at")
-
+  
   order  Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   client Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
-
+  
   @@map("installments")
 }
