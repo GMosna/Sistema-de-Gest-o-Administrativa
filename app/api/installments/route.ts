@@ -1,42 +1,37 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-export async function PUT(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(req: Request) {
   try {
-    const { id } = await params
-    const installmentId = parseInt(id)
+    const { searchParams } = new URL(req.url)
+    const clientId = searchParams.get('client_id')
 
-    if (isNaN(installmentId)) {
-      return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
-    }
-
-    const { status } = await req.json()
-
-    if (!status || !['pending', 'paid'].includes(status)) {
-      return NextResponse.json({ error: 'Status inválido' }, { status: 400 })
-    }
-
-    const paidAt = status === 'paid' ? new Date() : null
-
-    const installment = await prisma.installment.update({
-      where: { id: installmentId },
-      data: {
-        status,
-        paidAt,
+    const installments = await prisma.installment.findMany({
+      where: clientId ? { clientId: parseInt(clientId) } : undefined,
+      include: {
+        client: { select: { name: true } },
+        order: { select: { id: true, paymentMethod: true } },
       },
+      orderBy: { dueDate: 'asc' },
     })
 
-    return NextResponse.json(installment)
-  } catch (error: any) {
-    console.error('[PUT /api/installments/:id]', error)
-
-    if (error.code === 'P2025') {
-      return NextResponse.json({ error: 'Parcela não encontrada' }, { status: 404 })
-    }
-
-    return NextResponse.json({ error: 'Erro ao atualizar parcela' }, { status: 500 })
+    return NextResponse.json(
+      installments.map((i) => ({
+        id: i.id,
+        order_id: i.orderId,
+        client_id: i.clientId,
+        client_name: i.client?.name ?? null,
+        installment_number: i.installmentNumber,
+        total_installments: i.totalInstallments,
+        value: Number(i.value),
+        due_date: i.dueDate.toISOString().split('T')[0],
+        status: i.status,
+        paid_at: i.paidAt,
+        created_at: i.createdAt,
+      }))
+    )
+  } catch (error) {
+    console.error('[GET /api/installments]', error)
+    return NextResponse.json({ error: 'Erro ao buscar parcelas' }, { status: 500 })
   }
 }
