@@ -40,7 +40,7 @@ function serializeOrder(o: {
     supplier_cost: Number(o.supplierCost),
     shipping_cost: Number(o.shippingCost),
     profit: Number(o.profit),
-    created_at: o.createdAt,
+    created_at: o.createdAt.toISOString(),
     items: o.items?.map(serializeItem) ?? [],
   }
 }

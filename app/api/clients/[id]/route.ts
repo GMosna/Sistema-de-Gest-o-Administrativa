@@ -40,7 +40,7 @@ export async function GET(
         email: client.email,
         address: client.address,
         notes: client.notes,
-        created_at: client.createdAt,
+        created_at: client.createdAt.toISOString(),
       },
       orders: orders.map((o) => ({
         id: o.id,
@@ -53,7 +53,7 @@ export async function GET(
         supplier_cost: Number(o.supplierCost),
         shipping_cost: Number(o.shippingCost),
         profit: Number(o.profit),
-        created_at: o.createdAt,
+        created_at: o.createdAt.toISOString(),
         items: o.items.map((i) => ({
           id: i.id,
           order_id: i.orderId,
@@ -64,6 +64,7 @@ export async function GET(
           price: Number(i.price),
           quantity: i.quantity,
           commission: Number(i.commission),
+          shipping: Number(i.shipping),
         })),
       })),
       installments: installments.map((i) => ({
@@ -75,8 +76,8 @@ export async function GET(
         value: Number(i.value),
         due_date: i.dueDate.toISOString().split('T')[0],
         status: i.status,
-        paid_at: i.paidAt,
-        created_at: i.createdAt,
+        paid_at: i.paidAt ? i.paidAt.toISOString() : null,
+        created_at: i.createdAt.toISOString(),
       })),
       totalDebt,
     })
@@ -120,7 +121,7 @@ export async function PUT(
       email: client.email,
       address: client.address,
       notes: client.notes,
-      created_at: client.createdAt,
+      created_at: client.createdAt.toISOString(),
     })
   } catch (error: unknown) {
     console.error('[PUT /api/clients/:id]', error)

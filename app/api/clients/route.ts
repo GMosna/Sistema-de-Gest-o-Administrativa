@@ -18,7 +18,7 @@ export async function GET() {
         email: c.email,
         address: c.address,
         notes: c.notes,
-        created_at: c.createdAt,
+        created_at: c.createdAt.toISOString(),
         total_debt: c.installments.reduce((sum, i) => sum + Number(i.value), 0),
       })),
     )
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
         email: client.email,
         address: client.address,
         notes: client.notes,
-        created_at: client.createdAt,
+        created_at: client.createdAt.toISOString(),
         total_debt: 0,
       },
       { status: 201 },

@@ -2,6 +2,8 @@ export type Client = {
   id: number
   name: string
   phone: string | null
+  email: string | null
+  address: string | null
   notes: string | null
   total_debt?: number
   created_at: string
@@ -33,11 +35,14 @@ export type OrderItem = {
   color: string | null
   price: number
   quantity: number
+  commission: number
+  shipping: number
 }
 
 export type Installment = {
   id: number
   order_id: number
+  client_id?: number | null
   client_name?: string
   order_created_at?: string
   supplier_name?: string | null

@@ -60,10 +60,10 @@ export async function GET() {
 
     const recentOrdersFormatted = recentOrders.map(order => ({
       id: order.id,
-      total_value: order.totalValue,
+      total_value: Number(order.totalValue),
       payment_method: order.paymentMethod,
       status: order.status,
-      created_at: order.createdAt,
+      created_at: order.createdAt.toISOString(),
       client_name: order.client.name,
     }))
 
