@@ -1,49 +1,58 @@
 import { NextResponse } from 'next/server'
-import sql from '@/lib/db'
+import { prisma } from '@/lib/prisma'
 
 export async function GET() {
   try {
-    const [totals] = await sql`
-      SELECT
-        COALESCE(SUM(total_value), 0) AS total_sales,
-        COUNT(*) AS total_orders,
-        COALESCE(SUM(supplier_cost), 0) AS total_supplier_cost,
-        COALESCE(SUM(shipping_cost), 0) AS total_shipping_cost,
-        COALESCE(SUM(profit), 0) AS total_profit
-      FROM orders
-    `
-    const [pending] = await sql`
-      SELECT COALESCE(SUM(value), 0) AS total_pending
-      FROM installments
-      WHERE status = 'pending'
-    `
-    const [overdue] = await sql`
-      SELECT
-        COUNT(*) AS overdue_count,
-        COALESCE(SUM(value), 0) AS overdue_value
-      FROM installments
-      WHERE status = 'pending' AND due_date < CURRENT_DATE
-    `
-    const recent = await sql`
-      SELECT o.id, o.total_value, o.payment_method, o.status, o.created_at, c.name AS client_name
-      FROM orders o
-      JOIN clients c ON c.id = o.client_id
-      ORDER BY o.created_at DESC
-      LIMIT 8
-    `
+    const totals = await prisma.order.aggregate({
+      _sum: {
+        totalValue: true,
+        supplierCost: true,
+        shippingCost: true,
+        profit: true,
+      },
+      _count: { id: true },
+    })
+
+    const pendingAgg = await prisma.installment.aggregate({
+      where: { status: 'pending' },
+      _sum: { value: true },
+    })
+
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const overdueAgg = await prisma.installment.aggregate({
+      where: { status: 'pending', dueDate: { lt: today } },
+      _sum: { value: true },
+      _count: { id: true },
+    })
+
+    const recentOrders = await prisma.order.findMany({
+      take: 8,
+      orderBy: { createdAt: 'desc' },
+      include: { client: { select: { name: true } } },
+    })
 
     return NextResponse.json({
-      total_sales: Number(totals.total_sales),
-      total_orders: Number(totals.total_orders),
-      total_supplier_cost: Number(totals.total_supplier_cost),
-      total_shipping_cost: Number(totals.total_shipping_cost),
-      total_profit: Number(totals.total_profit),
-      total_pending: Number(pending.total_pending),
-      overdue_count: Number(overdue.overdue_count),
-      overdue_value: Number(overdue.overdue_value),
-      recent_orders: recent,
+      total_sales: Number(totals._sum.totalValue ?? 0),
+      total_orders: totals._count.id,
+      total_supplier_cost: Number(totals._sum.supplierCost ?? 0),
+      total_shipping_cost: Number(totals._sum.shippingCost ?? 0),
+      total_profit: Number(totals._sum.profit ?? 0),
+      total_pending: Number(pendingAgg._sum.value ?? 0),
+      overdue_count: overdueAgg._count.id,
+      overdue_value: Number(overdueAgg._sum.value ?? 0),
+      recent_orders: recentOrders.map((o) => ({
+        id: o.id,
+        total_value: Number(o.totalValue),
+        payment_method: o.paymentMethod,
+        status: o.status,
+        created_at: o.createdAt,
+        client_name: o.client.name,
+      })),
     })
   } catch (error) {
+    console.error('[GET /api/dashboard]', error)
     return NextResponse.json({ error: 'Erro ao buscar dados' }, { status: 500 })
   }
 }

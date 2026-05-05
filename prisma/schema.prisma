@@ -1,0 +1,77 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Client {
+  id        Int      @id @default(autoincrement())
+  name      String
+  phone     String?
+  email     String?
+  address   String?
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  orders       Order[]
+  installments Installment[]
+
+  @@map("clients")
+}
+
+model Order {
+  id            Int      @id @default(autoincrement())
+  clientId      Int      @map("client_id")
+  totalValue    Decimal  @map("total_value") @db.Decimal(10, 2)
+  paymentMethod String   @map("payment_method")
+  pixKey        String?  @map("pix_key")
+  status        String   @default("pending")
+  supplierName  String?  @map("supplier_name")
+  supplierCost  Decimal  @default(0) @map("supplier_cost") @db.Decimal(10, 2)
+  shippingCost  Decimal  @default(0) @map("shipping_cost") @db.Decimal(10, 2)
+  profit        Decimal  @default(0) @db.Decimal(10, 2)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  client       Client        @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  items        OrderItem[]
+  installments Installment[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id          Int     @id @default(autoincrement())
+  orderId     Int     @map("order_id")
+  productCode String  @map("product_code")
+  productName String  @map("product_name")
+  size        String?
+  color       String?
+  price       Decimal @db.Decimal(10, 2)
+  quantity    Int
+  commission  Decimal @default(0) @db.Decimal(10, 2)
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("order_items")
+}
+
+model Installment {
+  id                Int       @id @default(autoincrement())
+  orderId           Int       @map("order_id")
+  clientId          Int?      @map("client_id")
+  installmentNumber Int?      @map("installment_number")
+  totalInstallments Int?      @map("total_installments")
+  value             Decimal   @db.Decimal(10, 2)
+  dueDate           DateTime  @map("due_date") @db.Date
+  status            String    @default("pending")
+  paidAt            DateTime? @map("paid_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  order  Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  client Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  @@map("installments")
+}
