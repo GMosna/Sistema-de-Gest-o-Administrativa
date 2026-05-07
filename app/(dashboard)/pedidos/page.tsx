@@ -4,6 +4,7 @@ import useSWR from 'swr'
 import Link from 'next/link'
 import { useState } from 'react'
 import { Plus, Eye, Trash2, ShoppingBag, CheckCircle2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -60,17 +61,19 @@ export default function PedidosPage() {
   )
 
   async function handleDelete(id: number) {
-    await fetch(`/api/orders/${id}`, { method: 'DELETE' })
+    const res = await fetch(`/api/orders/${id}`, { method: 'DELETE' })
+    if (!res.ok) { toast.error('Erro ao excluir pedido'); return }
     await mutate()
     setDeleteId(null)
   }
 
   async function handleMarkAsPaid(id: number) {
-    await fetch(`/api/orders/${id}`, {
+    const res = await fetch(`/api/orders/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: 'paid' }),
     })
+    if (!res.ok) { toast.error('Erro ao atualizar pedido'); return }
     await mutate()
   }
 

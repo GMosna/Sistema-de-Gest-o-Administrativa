@@ -216,6 +216,10 @@ export default function NovoPedidoPage() {
           shipping_cost: parseFloat(shippingCost) || 0,
         }),
       })
+      if (!res.ok) {
+        setShowGlobalError(true)
+        return
+      }
       const order = await res.json()
       router.push(`/pedidos/${order.id}`)
     } finally {

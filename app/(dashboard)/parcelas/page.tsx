@@ -137,11 +137,12 @@ export default function ParcelasPage() {
 
   async function toggleStatus(inst: Installment) {
     const newStatus = inst.status === 'paid' ? 'pending' : 'paid'
-    await fetch(`/api/installments/${inst.id}`, {
+    const res = await fetch(`/api/installments/${inst.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: newStatus }),
     })
+    if (!res.ok) { toast.error('Erro ao atualizar parcela'); return }
     await mutate()
   }
 

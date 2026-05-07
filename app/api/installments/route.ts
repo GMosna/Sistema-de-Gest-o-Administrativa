@@ -10,7 +10,7 @@ export async function GET(req: Request) {
       where: clientId ? { clientId: parseInt(clientId) } : undefined,
       include: {
         client: { select: { name: true } },
-        order: { select: { id: true, paymentMethod: true } },
+        order: { select: { id: true, paymentMethod: true, supplierName: true, createdAt: true } },
       },
       orderBy: { dueDate: 'asc' },
     })
@@ -28,6 +28,8 @@ export async function GET(req: Request) {
         status: i.status,
         paid_at: i.paidAt,
         created_at: i.createdAt,
+        supplier_name: i.order?.supplierName ?? null,
+        order_created_at: i.order?.createdAt?.toISOString() ?? null,
       }))
     )
   } catch (error) {

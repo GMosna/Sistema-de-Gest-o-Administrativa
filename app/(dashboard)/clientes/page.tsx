@@ -3,6 +3,7 @@
 import useSWR from 'swr'
 import { useState } from 'react'
 import { Plus, Pencil, Trash2, ChevronRight, Phone, Users } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -65,19 +66,18 @@ export default function ClientesPage() {
   async function handleSave() {
     setSaving(true)
     try {
-      if (editing) {
-        await fetch(`/api/clients/${editing.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(form),
-        })
-      } else {
-        await fetch('/api/clients', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(form),
-        })
-      }
+      const res = editing
+        ? await fetch(`/api/clients/${editing.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(form),
+          })
+        : await fetch('/api/clients', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(form),
+          })
+      if (!res.ok) { toast.error('Erro ao salvar cliente'); return }
       await mutate()
       setFormOpen(false)
     } finally {
@@ -86,7 +86,8 @@ export default function ClientesPage() {
   }
 
   async function handleDelete(id: number) {
-    await fetch(`/api/clients/${id}`, { method: 'DELETE' })
+    const res = await fetch(`/api/clients/${id}`, { method: 'DELETE' })
+    if (!res.ok) { toast.error('Erro ao excluir cliente'); return }
     await mutate()
     setDeleteId(null)
   }
