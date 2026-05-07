@@ -6,8 +6,13 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url)
     const clientId = searchParams.get('client_id')
 
+    const parsedClientId = clientId ? parseInt(clientId) : null
+    if (parsedClientId !== null && isNaN(parsedClientId)) {
+      return NextResponse.json({ error: 'client_id inválido' }, { status: 400 })
+    }
+
     const installments = await prisma.installment.findMany({
-      where: clientId ? { clientId: parseInt(clientId) } : undefined,
+      where: parsedClientId ? { clientId: parsedClientId } : undefined,
       include: {
         client: { select: { name: true } },
         order: { select: { id: true, paymentMethod: true, supplierName: true, createdAt: true } },

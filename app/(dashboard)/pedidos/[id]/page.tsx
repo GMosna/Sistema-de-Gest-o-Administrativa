@@ -4,6 +4,7 @@ import { use } from 'react'
 import useSWR from 'swr'
 import Link from 'next/link'
 import { ArrowLeft, FileDown, CheckCircle2, AlertCircle, Lock } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -93,11 +94,12 @@ export default function PedidoDetailPage({ params }: { params: Promise<{ id: str
 
   async function markInstallmentPaid(instId: number, current: string) {
     const newStatus = current === 'paid' ? 'pending' : 'paid'
-    await fetch(`/api/installments/${instId}`, {
+    const res = await fetch(`/api/installments/${instId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: newStatus }),
     })
+    if (!res.ok) { toast.error('Erro ao atualizar parcela'); return }
     await mutate()
   }
 

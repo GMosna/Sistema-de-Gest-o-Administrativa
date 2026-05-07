@@ -36,7 +36,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
+    <html lang="pt-BR">
       <body className="font-sans antialiased">
         {children}
         <Toaster position="bottom-right" richColors />
